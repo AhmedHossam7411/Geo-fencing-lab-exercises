@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab 3B · Geofenced Transfer</title>
+<style>
+:root{
+  --navy:#14213D; --navy-2:#22304F; --teal:#1F7A6D; --teal-soft:#E3EEEA; --cream:#F5F4EF;
+  --card:#FDFCF8; --line:#E3E1DA; --ink:#14213D; --body:#3F4A5C; --muted:#5F6673;
+  --amber:#9A5B12; --amber-soft:#F8EBD8; --red:#A33224; --red-soft:#F8E1DC; --gray:#6B7078; --gray-soft:#ECEBE6;
+  --mono:Consolas,"Cascadia Mono","Courier New",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--cream);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+button,input,textarea{font:inherit;color:inherit}
+header{background:var(--navy);color:#F5F4EF;padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header .brand{font-weight:700;letter-spacing:.3px;font-size:17px}
+header .brand span{color:#E8A04C;font-weight:600;letter-spacing:2px;text-transform:uppercase;font-size:12px;margin-right:10px}
+header .who{margin-left:auto;font-size:14px;color:#C5CFDD}
+.app{display:grid;grid-template-columns:220px minmax(0,1fr) minmax(0,1.05fr);gap:20px;padding:20px 24px;align-items:start}
+nav{position:sticky;top:12px;display:flex;flex-direction:column;gap:4px}
+nav button{display:flex;align-items:center;gap:10px;text-align:left;border:1px solid transparent;background:none;padding:8px 10px;border-radius:10px;cursor:pointer;color:var(--body)}
+nav button:hover{background:var(--card);border-color:var(--line)}
+nav button.active{background:var(--card);border-color:var(--teal);color:var(--ink);font-weight:600}
+nav .dot{width:12px;height:12px;border-radius:50%;border:2px solid #B9BCC2;flex:none}
+nav .dot.started{border-color:var(--teal);background:var(--teal-soft)}
+nav .dot.done{border-color:var(--teal);background:var(--teal)}
+nav .group{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:12px 10px 2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--teal)}
+h1{font-size:28px;line-height:1.15;margin:4px 0 8px}
+h2{font-size:18px;margin:0 0 8px;display:flex;align-items:center;gap:10px}
+.pill{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 10px;border-radius:999px}
+.pill.predict{background:var(--navy);color:#F5F4EF}
+.pill.run{background:var(--teal);color:#F5F4EF}
+.pill.explain{background:#F3DDBD;color:var(--navy)}
+p{margin:0 0 8px;color:var(--body)}
+.q{font-weight:600;color:var(--ink);margin:10px 0 6px}
+textarea{width:100%;min-height:86px;resize:vertical;border:1px solid #CFCCC3;border-radius:10px;padding:10px 12px;background:#fff;line-height:1.45}
+textarea:focus,input:focus{outline:2px solid var(--teal);outline-offset:1px}
+textarea:disabled{background:var(--gray-soft);color:var(--muted)}
+.hint{font-size:13px;color:var(--muted);margin-top:6px}
+.locked{font-size:13px;color:var(--teal);font-weight:600;margin-top:6px}
+.actions{display:flex;flex-direction:column;gap:8px}
+.act{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
+.act .n{width:26px;height:26px;border-radius:50%;background:var(--gray-soft);color:var(--muted);display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
+.act.done .n{background:var(--teal);color:#fff}
+.act .lbl{flex:1;min-width:0}
+.act code{display:block;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.btn{border:none;border-radius:9px;padding:8px 16px;font-weight:600;cursor:pointer;background:var(--teal);color:#fff;white-space:nowrap}
+.btn:disabled{background:#C9CCCF;color:#F3F3F3;cursor:not-allowed}
+.btn.ghost{background:none;border:1px solid var(--teal);color:var(--teal)}
+.btn.navy{background:var(--navy)}
+.console{background:var(--navy);color:#E9EDF3;border-radius:12px;padding:12px 14px;font-size:14px;display:flex;flex-direction:column;gap:6px;min-height:52px}
+.console .empty{color:#8E9AB0;font-style:italic}
+.console .line{display:flex;gap:8px;align-items:flex-start}
+.console .ico{flex:none;width:18px;text-align:center}
+.console .ok .ico{color:#7FD1B9}
+.console .warn{color:#FFD9A8}
+.console .warn .ico{color:#F2A54A}
+.console .step{color:#8E9AB0;font-family:var(--mono);font-size:12.5px;margin-top:6px}
+.console pre{margin:0;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-all;color:#C9F0E3}
+.console .mono{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+.footer-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+aside.system{display:flex;flex-direction:column;gap:14px;position:sticky;top:12px;min-width:0}
+aside.system h3{margin:0 0 8px;font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.keys{display:flex;flex-wrap:wrap;gap:6px}
+.key{font-size:12.5px;border-radius:8px;padding:4px 8px;background:var(--teal-soft);color:var(--ink);border:1px solid #CFE2DB}
+.key b{font-weight:700}
+.key .fp{font-family:var(--mono);color:var(--muted)}
+.key.gone{background:var(--gray-soft);color:var(--gray);text-decoration:line-through;border-color:var(--line)}
+.key.wait{background:var(--amber-soft);border-color:#EBCF9F}
+.grid-wrap{overflow-x:auto}
+table.grid{border-collapse:collapse;width:100%;font-size:12.5px}
+table.grid th{font-weight:600;color:var(--muted);text-align:left;padding:4px 6px;font-size:11.5px;white-space:nowrap}
+table.grid td{padding:3px 4px}
+table.grid tr.focus td:first-child{font-weight:700;color:var(--ink)}
+table.grid tr.focus td{background:#FFF8E8}
+.cell{border-radius:6px;padding:3px 6px;white-space:nowrap;display:inline-block;min-width:96px}
+.k-plain{background:var(--red-soft);color:var(--red)}
+.k-ok{background:var(--teal-soft);color:var(--teal)}
+.k-dead{background:var(--gray-soft);color:var(--gray)}
+.k-orphan,.k-disabled{background:var(--amber-soft);color:var(--amber)}
+.k-absent,.k-none{color:#A4A7AD}
+.k-pseudo{background:var(--teal-soft);color:var(--teal)}
+.k-orphanlog{background:var(--gray-soft);color:var(--gray)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:11.5px}
+.detail{display:flex;flex-direction:column;gap:8px}
+.dloc{font-size:12.5px}
+.dloc .fname{font-family:var(--mono);color:var(--muted);font-size:12px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.chip{border-radius:6px;padding:2px 7px;font-size:12px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.tok{font-family:var(--mono)}
+.chip.k-dead{text-decoration:line-through}
+.panel-list{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.panel-list .mono{font-family:var(--mono);font-size:12px;word-break:break-all}
+.note{font-size:13px;color:var(--muted)}
+.welcome p{font-size:15.5px}
+.welcome ol{color:var(--body);padding-left:20px;margin:6px 0 10px}
+.welcome li{margin:4px 0}
+input.name{border:1px solid #CFCCC3;border-radius:10px;padding:9px 12px;width:min(380px,100%);background:#fff}
+.status-list{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.status-list .row{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:4px 0}
+.status-list .yes{color:var(--teal);font-weight:600}
+.status-list .no{color:var(--amber);font-weight:600}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 18px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+table.grid.payload .cell{min-width:0;white-space:normal}
+.wire .cell{white-space:normal} .card{min-width:0}
+.grid-wrap{max-width:100%} aside.system,main{max-width:100%}
+.act code{overflow-wrap:anywhere}
+.k-token{background:var(--teal-soft);color:var(--teal);font-family:var(--mono)}
+.k-gen{background:var(--amber-soft);color:var(--amber)}
+.k-drop{color:#A4A7AD;font-style:italic}
+.k-cipher{background:var(--gray-soft);color:var(--gray);font-family:var(--mono)}
+.key.leak{background:var(--red-soft);border-color:#E9B9B0;color:var(--red)}
+.key.rel{background:var(--amber-soft);border-color:#EBCF9F}
+.regions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.region{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;min-width:0}
+.region h4{margin:0 0 6px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink)}
+.region .sub{font-size:11.5px;color:var(--muted);margin:8px 0 3px}
+.wire{font-size:12.5px;color:var(--muted);margin:0 0 8px}
+table.matrix{border-collapse:collapse;width:100%;font-size:13px}
+table.matrix th{font-size:11.5px;color:var(--muted);text-align:left;font-weight:600;padding:4px 6px}
+table.matrix td{padding:4px 6px;border-top:1px solid var(--line)}
+table.matrix .how{display:block;font-size:11px;color:var(--muted)}
+.bars{display:flex;flex-direction:column;gap:6px;margin-top:8px;font-size:12.5px}
+.bar{position:relative;height:20px;background:var(--gray-soft);border-radius:6px;overflow:hidden}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+.bar .fill.fail{background:#E7A99C}
+.bar .fill.pass{background:#8CC9B9}
+.bar .thr{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--navy)}
+.bar .val{position:absolute;right:6px;top:1px;font-weight:700;color:var(--ink)}
+@media (max-width:1180px){
+  .app{grid-template-columns:1fr}
+  nav{position:static;flex-direction:row;flex-wrap:wrap}
+  nav .group{display:none}
+  aside.system{position:static}
+}
+@media (max-width:560px){ .regions{grid-template-columns:1fr} .app{padding:16px} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span>Data Privacy · Lab 3B</span>Geofenced Transfer: the VitaLink simulation</div>
+  <div class="who" id="who"></div>
+</header>
+<div class="app">
+  <nav id="nav"></nav>
+  <main id="main"></main>
+  <aside class="system" id="system"></aside>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* =========================================================================
+   Scenario data (same VitaLink patients as Lab 3A)
+   ========================================================================= */
+const PATIENTS = [
+  {patient_id:"P001", name:"Anna Becker",     email:"anna.becker@mail.de",     zip:"10115", dob:"1985-03-12", sex:"F", diagnosis:"Asthma",                    clinic_region:"EU"},
+  {patient_id:"P002", name:"Luca Rossi",      email:"luca.rossi@mail.it",      zip:"20121", dob:"1972-11-02", sex:"M", diagnosis:"Hypertension",              clinic_region:"EU"},
+  {patient_id:"P003", name:"Sofia Lindqvist", email:"sofia.lindqvist@mail.se", zip:"11122", dob:"1990-07-24", sex:"F", diagnosis:"Major depressive disorder", clinic_region:"EU"},
+  {patient_id:"P004", name:"James Carter",    email:"james.carter@mail.com",   zip:"02139", dob:"1968-01-30", sex:"M", diagnosis:"Asthma",                    clinic_region:"US"},
+  {patient_id:"P005", name:"Maria Lopez",     email:"maria.lopez@mail.com",    zip:"90012", dob:"1995-05-17", sex:"F", diagnosis:"Type 2 diabetes",           clinic_region:"US"},
+  {patient_id:"P006", name:"David Kim",       email:"david.kim@mail.com",      zip:"60601", dob:"1980-09-09", sex:"M", diagnosis:"Migraine",                  clinic_region:"US"},
+];
+const P = id => PATIENTS.find(p => p.patient_id === id);
+const EIDS = PATIENTS.filter(p => p.clinic_region === "EU").map(p => p.patient_id);   // P001, P002, P003
+const COLS = ["subject","zip","dob","sex","diagnosis"];
+/* A public running-club member list: the outside dataset an analyst can join with */
+const RUNNERS = [
+  {name:"Anna Becker",     zip:"10115", dob:"1985-03-12", sex:"F"},
+  {name:"Jonas Weber",     zip:"10117", dob:"1985-08-30", sex:"M"},
+  {name:"Mia Schulz",      zip:"10119", dob:"1985-01-04", sex:"F"},
+  {name:"Luca Rossi",      zip:"20121", dob:"1972-11-02", sex:"M"},
+  {name:"Marco Bianchi",   zip:"20123", dob:"1972-04-18", sex:"M"},
+  {name:"Sofia Lindqvist", zip:"11122", dob:"1990-07-24", sex:"F"},
+  {name:"Elin Berg",       zip:"11120", dob:"1990-02-11", sex:"F"},
+  {name:"Oskar Nilsson",   zip:"11129", dob:"1990-12-01", sex:"M"},
+  {name:"Hanna Koch",      zip:"50667", dob:"1979-06-21", sex:"F"},
+  {name:"Pedro Alves",     zip:"11000", dob:"1988-10-05", sex:"M"},
+];
+const BILLING = {P001:"€42.00", P002:"€42.00", P003:"€65.00"};
+
+/* =========================================================================
+   Byte helpers, SHA-256 and HMAC (self-contained, works offline)
+   ========================================================================= */
+const utf8 = new TextEncoder();
+function randBytes(n){ const b = new Uint8Array(n); crypto.getRandomValues(b); return b; }
+function concat(...parts){ const len = parts.reduce((a,p)=>a+p.length,0); const out = new Uint8Array(len); let o=0; for(const p of parts){ out.set(p,o); o+=p.length; } return out; }
+function b64url(bytes){ let s=""; for(const x of bytes) s+=String.fromCharCode(x); return btoa(s).replace(/\+/g,"-").replace(/\//g,"_"); }
+function unb64url(str){ const s = atob(str.replace(/-/g,"+").replace(/_/g,"/")); return Uint8Array.from(s, c => c.charCodeAt(0)); }
+function hex(bytes){ return Array.from(bytes, b => b.toString(16).padStart(2,"0")).join(""); }
+function isPrime(n){ for(let i=2;i*i<=n;i++) if(n%i===0) return false; return true; }
+function firstPrimes(count){ const out=[]; for(let n=2; out.length<count; n++) if(isPrime(n)) out.push(n); return out; }
+const SHA_K = firstPrimes(64).map(p => Math.floor((Math.cbrt(p) % 1) * 4294967296) >>> 0);
+const SHA_H = firstPrimes(8).map(p => Math.floor((Math.sqrt(p) % 1) * 4294967296) >>> 0);
+function ror(x,n){ return (x>>>n) | (x<<(32-n)); }
+function sha256(msg){
+  const l = msg.length, padLen = ((l + 9 + 63) >> 6) << 6;
+  const m = new Uint8Array(padLen); m.set(msg); m[l] = 0x80;
+  const dv = new DataView(m.buffer);
+  dv.setUint32(padLen-8, Math.floor(l / 0x20000000)); dv.setUint32(padLen-4, (l << 3) >>> 0);
+  const H = SHA_H.slice(), w = new Uint32Array(64);
+  for(let o=0; o<padLen; o+=64){
+    for(let i=0;i<16;i++) w[i] = dv.getUint32(o + i*4);
+    for(let i=16;i<64;i++){
+      const a=w[i-15], b=w[i-2];
+      const s0 = ror(a,7) ^ ror(a,18) ^ (a>>>3), s1 = ror(b,17) ^ ror(b,19) ^ (b>>>10);
+      w[i] = (w[i-16] + s0 + w[i-7] + s1) >>> 0;
+    }
+    let [a,b,c,d,e,f,g,h] = H;
+    for(let i=0;i<64;i++){
+      const S1 = ror(e,6) ^ ror(e,11) ^ ror(e,25), ch = (e & f) ^ (~e & g);
+      const t1 = (h + S1 + ch + SHA_K[i] + w[i]) >>> 0;
+      const S0 = ror(a,2) ^ ror(a,13) ^ ror(a,22), mj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (S0 + mj) >>> 0;
+      h=g; g=f; f=e; e=(d+t1)>>>0; d=c; c=b; b=a; a=(t1+t2)>>>0;
+    }
+    H[0]=(H[0]+a)>>>0; H[1]=(H[1]+b)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0;
+    H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0;
+  }
+  const out = new Uint8Array(32), odv = new DataView(out.buffer);
+  H.forEach((x,i) => odv.setUint32(i*4, x));
+  return out;
+}
+function hmac(key, msg){
+  let k = key.length > 64 ? sha256(key) : key;
+  const block = new Uint8Array(64); block.set(k);
+  const ipad = block.map(b => b ^ 0x36), opad = block.map(b => b ^ 0x5c);
+  return sha256(concat(opad, sha256(concat(ipad, msg))));
+}
+const sha256hex = str => hex(sha256(utf8.encode(str)));
+const hmacHex = (key, str) => hex(hmac(typeof key === "string" ? utf8.encode(key) : key, utf8.encode(str)));
+
+/* Fernet-shaped tokens. Real Fernet layout: version(1) | timestamp(8) | IV(16) | ciphertext | HMAC(32).
+   The simulation never needs to decrypt: whether a token is readable is decided by whether its key exists. */
+function newKey(){ return b64url(randBytes(32)); }
+function makeToken(text){
+  const ctLen = (Math.floor(utf8.encode(text).length / 16) + 1) * 16;
+  const ts = new Uint8Array(8); new DataView(ts.buffer).setUint32(4, Math.floor(Date.now()/1000));
+  return b64url(concat(new Uint8Array([0x80]), ts, randBytes(16), randBytes(ctLen), randBytes(32)));
+}
+function tokenSeconds(token){ const b = unb64url(token), dv = new DataView(b.buffer); return dv.getUint32(1) * 4294967296 + dv.getUint32(5); }
+const fp = key => sha256hex(key).slice(0,16);
+const short = (tok, n=14) => tok.length > n ? tok.slice(0,n) + "…" : tok;
+
+/* =========================================================================
+   The simulated transfer: EU origin, the wire, the US analytics backend
+   ========================================================================= */
+function newSystem(opts = {}){
+  const s = {tokenMode:null, secret:b64url(randBytes(32)), tokens:{}, tokenMap:{}, purposeScoped:false,
+             euKms:{}, usKms:{}, usTags:{}, gone:[], batchKey:null, perPatient:false, ppKeys:{},
+             encrypted:false, ct:{}, sent:false, batches:0, generalize:false, dropSex:false,
+             releases:[], usRead:false, secretInUS:false, linkKnown:false, errorLog:[], extra:{}, panel:null, risk:[]};
+  if(opts.tok) tokenize(s, "hmac");
+  if(opts.enc){ makeKms(s); encryptBatch(s); }
+  if(opts.send) send(s);
+  if(opts.release){ releaseKey(s, "us-analytics", "chronic-disease outcomes study"); }
+  if(opts.read) s.usRead = true;
+  return s;
+}
+function tokenFor(s, pid, purpose){
+  if(s.tokenMode === "sha") return sha256hex(pid);
+  return hmacHex(s.secret, s.purposeScoped ? `${purpose || "analytics"}:${pid}` : pid);
+}
+function tokenize(s, mode){
+  s.tokenMode = mode; s.tokens = {}; s.tokenMap = {};
+  EIDS.forEach(pid => { const t = tokenFor(s, pid, "analytics"); s.tokens[pid] = t; if(mode === "hmac") s.tokenMap[t] = pid; });
+}
+function makeKms(s){ s.euKms = {transfer: newKey()}; s.usKms = {}; s.usTags = {}; s.batchKey = s.euKms.transfer; }
+const keyFor = (s, pid) => s.perPatient ? s.ppKeys[pid] : s.batchKey;
+const euHas  = (s, pid) => Object.values(s.euKms).includes(keyFor(s, pid));
+const usHas  = (s, pid) => Object.values(s.usKms).includes(keyFor(s, pid));
+function payloadRecord(s, pid){
+  const p = P(pid), r = {};
+  if(s.tokenMode) r.token = s.tokens[pid]; else { r.patient_id = p.patient_id; r.name = p.name; r.email = p.email; }
+  r.zip = s.generalize ? p.zip.slice(0,3) + "**" : p.zip;
+  r.dob = s.generalize ? p.dob.slice(0,4) : p.dob;
+  if(!(s.generalize || s.dropSex)) r.sex = p.sex;
+  r.diagnosis = p.diagnosis;
+  return r;
+}
+function encryptBatch(s){ s.encrypted = true; EIDS.forEach(pid => s.ct[pid] = makeToken(JSON.stringify(payloadRecord(s, pid)))); }
+function send(s){ s.sent = true; s.batches++; }
+function releaseKey(s, to, purpose){
+  s.usKms.transfer = s.batchKey; s.usTags.transfer = "released";
+  const r = {key:"transfer", key_fingerprint: fp(s.batchKey), released_to: to, purpose, approved_by:"EU DPO", released_at: new Date().toISOString().slice(0,19) + "Z", expires:"24h"};
+  s.releases.push(r); return r;
+}
+function destroyKey(s, key){
+  for(const n in s.euKms) if(s.euKms[n] === key){ s.gone.push({side:"EU", name:n, key}); delete s.euKms[n]; }
+  for(const n in s.usKms) if(s.usKms[n] === key){ s.gone.push({side:"US", name:n, key}); delete s.usKms[n]; delete s.usTags[n]; }
+}
+/* Who can recover what from the payload */
+function content(s, party, pid){
+  if(!s.sent) return false;
+  if(!s.encrypted) return true;
+  if(party === "eu") return euHas(s, pid);
+  if(party === "us") return usHas(s, pid) || (s.usRead && !!keyFor(s, pid));
+  return false;
+}
+function identity(s, party, pid){
+  if(!content(s, party, pid)) return null;
+  if(!s.tokenMode) return "name in clear";
+  if(party === "eu") return s.tokenMap[s.tokens[pid]] ? "eu_token_map" : "secret + guessing";
+  if(s.tokenMode === "sha") return "hash reversed";
+  if(party === "us" && s.secretInUS) return "copied secret";
+  if(s.linkKnown && !s.generalize && !s.dropSex) return "ZIP + birth date + sex";
+  return null;
+}
+const countC = (s, party) => EIDS.filter(pid => content(s, party, pid)).length;
+const countI = (s, party) => EIDS.filter(pid => identity(s, party, pid)).length;
+
+/* Attacks */
+function guessIds(target, f){
+  for(let i=1;i<1000;i++){ const g = "P" + String(i).padStart(3,"0"); if(f(g) === target) return {id:g, n:i}; }
+  return null;
+}
+function guessReport(s, f){
+  return EIDS.map(pid => { const t = s.tokens[pid], r = guessIds(t, f);
+    return `${short(t,16)}  →  ${r ? `${r.id} after ${r.n} guesses` : "no match after 999 guesses"}`; });
+}
+function linkRunners(rec, generalized){
+  return RUNNERS.filter(x => generalized
+    ? x.zip.slice(0,3) + "**" === rec.zip && x.dob.slice(0,4) === rec.dob
+    : x.zip === rec.zip && x.dob === rec.dob && x.sex === rec.sex).map(x => x.name);
+}
+const usRecords = s => EIDS.map(pid => payloadRecord(s, pid));
+
+/* =========================================================================
+   Output helpers for the console
+   ========================================================================= */
+const esc = t => String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ok   = t => `<div class="line ok"><span class="ico">✓</span><span>${t}</span></div>`;
+const warn = t => `<div class="line warn"><span class="ico">⚠</span><span>${t}</span></div>`;
+const info = t => `<div class="line"><span class="ico">›</span><span>${t}</span></div>`;
+const pre  = t => `<pre>${esc(t)}</pre>`;
+const jsonl = rows => rows.map(r => JSON.stringify(r)).join("\n");
+const shortRec = r => { const o = Object.assign({}, r); if(o.token) o.token = short(o.token, 16); return o; };
+
+/* =========================================================================
+   The exercises
+   ========================================================================= */
+const STEPS = [
+{
+  id:"p1", group:"Lab", nav:"1 · Naive transfer", eyebrow:"Part 1 · 15 min", title:"The naive transfer",
+  intro:"VitaLink's US analytics team wants the records of the three EU patients (P001 to P003) for a chronic-disease study. Legal has signed Standard Contractual Clauses (SCCs) with VitaLink US, so the transfer is authorized. An engineer exports the records as they are and sends them across the Atlantic.",
+  setup:() => newSystem(),
+  predict:"The transfer is covered by signed SCCs. An attacker taps the link between the EU and the US. What can they read, and does the contract change anything about that?",
+  actions:[
+    {label:"Check the legal basis for the transfer", code:'transfer_mechanism("EU", "US")', run:s => {
+      return [info("Mechanism: Standard Contractual Clauses, signed by VitaLink EU and VitaLink US."),
+              info("Status: <b>authorized</b>. Technical safeguards recorded: <b>none</b>.")];
+    }},
+    {label:"Export P001 to P003 as they are and send the batch", code:'send(export_records(["P001","P002","P003"]))', run:s => {
+      send(s);
+      return [info(`Batch sent: ${EIDS.length} records, 7 fields each:`), pre(jsonl(usRecords(s)))];
+    }},
+    {label:"An attacker taps the EU–US link", code:"attacker_intercept(payload)", run:s => {
+      const recs = countC(s,"attacker"), ids = countI(s,"attacker"), fields = recs * 7;
+      return [info(`Records readable: <b>${recs} of 3</b> · identities: <b>${ids} of 3</b> · plaintext fields: <b>${fields}</b>`),
+              (recs === 3 && ids === 3 && fields === 21) ? ok("Checkpoint reached: 3 records, 3 identities, 21 plaintext fields.") : info("This does not match the checkpoint.")];
+    }},
+  ],
+  explains:["The transfer was legally authorized. What did the contract protect against, and what did it not?",
+            "List the fields the chronic-disease study actually needs. Which ones never had to leave the EU?"],
+},
+{
+  id:"p2", group:"Lab", nav:"2 · Tokenize identities", eyebrow:"Part 2 · 25 min", title:"Tokenize identities",
+  intro:"Pseudonymization replaces <i>who</i> a record is about with a token, and keeps the way back to the real identity in the EU. Name and email are removed; patient_id becomes the token. First try the obvious recipe, a plain SHA-256 hash of the ID, then a keyed one.",
+  setup:() => newSystem(),
+  predict:"You replace each patient_id with sha256(patient_id). Can someone who sees only the tokens work out who they belong to? What changes with an HMAC whose secret never leaves the EU? Does a patient get the same token every time?",
+  actions:[
+    {label:"Tokenize the EU patients with a plain SHA-256 hash", code:"token = sha256(patient_id)", run:s => {
+      tokenize(s, "sha");
+      return [info("Tokens:"), pre(EIDS.map(pid => `${pid}  →  ${short(s.tokens[pid],16)}`).join("\n"))];
+    }},
+    {label:"Guessing attack: hash P001 to P999 and compare", code:"for guess in P001..P999: sha256(guess) == token?", run:s => {
+      const n = EIDS.filter(pid => guessIds(s.tokens[pid], g => sha256hex(g))).length;
+      return [pre(guessReport(s, g => sha256hex(g)).join("\n")), info(`Tokens reversed: <b>${n} of 3</b>`)];
+    }},
+    {label:"Tokenize again with an HMAC and a secret that stays in the EU", code:"tokenize(patient_id, secret)", run:s => {
+      tokenize(s, "hmac");
+      return [info("Tokens:"), pre(EIDS.map(pid => `${pid}  →  ${short(s.tokens[pid],16)}`).join("\n")),
+              info(`eu_token_map built with ${Object.keys(s.tokenMap).length} entries. It and the secret stay in the EU.`)];
+    }},
+    {label:"Guessing attack again, without the secret", code:"for guess in P001..P999: hmac(attacker_secret, guess) == token?", run:s => {
+      const mine = b64url(randBytes(32));
+      const n = EIDS.filter(pid => guessIds(s.tokens[pid], g => hmacHex(mine, g))).length;
+      return [pre(guessReport(s, g => hmacHex(mine, g)).join("\n")), info(`Tokens reversed: <b>${n} of 3</b>`),
+              n === 0 ? ok("Checkpoint reached: plain hash 3 of 3 reversed, HMAC 0 of 3.") : info("This does not match the checkpoint.")];
+    }},
+    {label:"Tokenize P001 twice more, then once with a different secret", code:"tokenize('P001', secret) × 2", run:s => {
+      const a = hmacHex(s.secret, "P001"), b = hmacHex(s.secret, "P001"), c = hmacHex(b64url(randBytes(32)), "P001");
+      return [info(`Same secret, twice:<br><span class="mono">${short(a,32)}</span><br><span class="mono">${short(b,32)}</span><br>Equal? <b>${a === b ? "yes" : "no"}</b>`),
+              info(`Different secret:<br><span class="mono">${short(c,32)}</span><br>Equal to the first? <b>${a === c ? "yes" : "no"}</b>`)];
+    }},
+  ],
+  explains:["SHA-256 is one-way, yet the plain-hash tokens were reversed. Why?",
+            "An HMAC token is the same every time for the same patient. Why does the analytics team need that, and what does it let someone holding two datasets do?"],
+},
+{
+  id:"p3", group:"Lab", nav:"3 · Region-locked key", eyebrow:"Part 3 · 25 min", title:"Region-locked encryption",
+  intro:"Tokens hide <i>who</i>. Encryption hides <i>what</i>. Two key stores, eu_kms and us_kms, stand in for key management services in two cloud regions. The transfer key is created in the EU and never leaves it, even though the encrypted payload does.",
+  setup:() => newSystem({tok:true}),
+  predict:"The tokenized batch is encrypted with a key that exists only in eu_kms. Who can read it: the attacker on the wire, the US backend, the EU origin? Who can tell which patient each record is?",
+  actions:[
+    {label:"Create the two regional key stores and one transfer key in the EU", code:'eu_kms, us_kms = {}, {}; eu_kms["transfer"] = Fernet.generate_key()', run:s => {
+      makeKms(s);
+      return [info(`eu_kms: ${Object.keys(s.euKms).length} key · us_kms: ${Object.keys(s.usKms).length} keys`)];
+    }},
+    {label:"Encrypt each tokenized record and send the batch", code:'Fernet(eu_kms["transfer"]).encrypt(record)', run:s => {
+      encryptBatch(s); send(s);
+      return [info(`P001's record as it crosses the wire:<br><span class="mono">${s.ct.P001}</span>`), info("Batch sent: 3 encrypted records.")];
+    }},
+    {label:"An attacker intercepts the batch", code:"attacker_intercept(payload)", run:s => {
+      const lens = EIDS.map(pid => s.ct[pid].length).join(", ");
+      return [info("Decrypt with the attacker's own key: <b>InvalidToken</b> × 3"),
+              info(`Records readable: <b>${countC(s,"attacker")} of 3</b> · identities: <b>${countI(s,"attacker")} of 3</b>`),
+              info(`What the attacker still holds: 3 ciphertexts of ${lens} characters, each with its creation time in bytes 1 to 8.`)];
+    }},
+    {label:"The US backend tries to decrypt with us_kms", code:'Fernet(us_kms["transfer"]).decrypt(record)', run:s => {
+      return [info(`us_kms holds ${Object.keys(s.usKms).length} keys → <b>KeyError: 'transfer'</b>`),
+              info(`Records readable in the US: <b>${countC(s,"us")} of 3</b>`)];
+    }},
+    {label:"Sanity check: the EU origin decrypts and re-identifies", code:'Fernet(eu_kms["transfer"]).decrypt(...) ; eu_token_map[token]', run:s => {
+      const lines = EIDS.map(pid => `${short(s.tokens[pid],16)}  →  ${s.tokenMap[s.tokens[pid]]}  ${P(pid).diagnosis}`).join("\n");
+      const good = countC(s,"attacker") === 0 && countC(s,"us") === 0 && countC(s,"eu") === 3;
+      return [pre(lines), good ? ok("Checkpoint reached: attacker 0 of 3, US backend 0 of 3, EU origin 3 of 3.") : info("This does not match the checkpoint.")];
+    }},
+  ],
+  explains:["DISCUSS: What would have to happen, step by step, for the US backend to legitimately decrypt this payload? Why is that extra step a privacy control and not a bug?",
+            "The attacker read nothing, yet still learned something. What?"],
+},
+{
+  id:"p4", group:"Lab", nav:"4 · Release and re-identify", eyebrow:"Part 4 · 30 min", title:"Release, then re-identify",
+  intro:"The study is approved. The EU releases the transfer key to the US backend for one purpose, and the release is logged. The US now reads tokens, ZIP code, birth date, sex and diagnosis, but no name, email or ID. Then an analyst finds a public running-club member list (panel on the right).",
+  setup:() => { const s = newSystem({tok:true, enc:true, send:true}); s.panel = panelLink; return s; },
+  predict:"The US never receives a name, email or patient ID. The running-club list has names, ZIP codes, birth dates and sex. How many of the three EU patients can the US analyst re-identify?",
+  actions:[
+    {label:"The EU approves a logged, purpose-bound key release", code:'release_key(to="us-analytics", purpose="chronic-disease outcomes study")', run:s => {
+      const r = releaseKey(s, "us-analytics", "chronic-disease outcomes study");
+      return [info("Appended to key_release_log.jsonl:"), pre(JSON.stringify(r, null, 2))];
+    }},
+    {label:"The US backend decrypts the batch", code:'Fernet(us_kms["transfer"]).decrypt(record)', run:s => {
+      s.usRead = true;
+      return [info(`Records readable in the US: <b>${countC(s,"us")} of 3</b>`), pre(jsonl(usRecords(s).map(shortRec)))];
+    }},
+    {label:"Join with the running-club list on ZIP + birth date + sex", code:'link(records, running_club, on=["zip","dob","sex"])', run:s => {
+      s.linkKnown = true;
+      const res = usRecords(s).map(r => ({t:r.token, m:linkRunners(r, false)}));
+      const n = res.filter(x => x.m.length === 1).length;
+      return [pre(res.map(x => `${short(x.t,16)}  →  ${x.m.join(", ") || "no match"}`).join("\n")),
+              info(`Uniquely re-identified: <b>${n} of 3</b>`)];
+    }},
+    {label:"Generalize at the source: ZIP to 3 digits, birth date to year, drop sex; resend", code:"prepare_payload(generalize=True); send(); release_key(...)", run:s => {
+      s.generalize = true; encryptBatch(s); send(s); releaseKey(s, "us-analytics", "chronic-disease outcomes study");
+      return [info("New batch sent and released (second line in the release log). What the US now reads:"), pre(jsonl(usRecords(s).map(shortRec)))];
+    }},
+    {label:"Join again on what is left", code:'link(records, running_club, on=["zip3","birth_year"])', run:s => {
+      const res = usRecords(s).map(r => ({t:r.token, m:linkRunners(r, true)}));
+      const n = res.filter(x => x.m.length === 1).length, k = Math.min(...res.map(x => x.m.length));
+      return [pre(res.map(x => `${short(x.t,16)}  →  ${x.m.length} candidates: ${x.m.join(", ")}`).join("\n")),
+              info(`Uniquely re-identified: <b>${n} of 3</b> · smallest group: <b>${k}</b> people`),
+              n === 0 && k === 2 ? ok("Checkpoint reached: 3 of 3 before generalizing, 0 of 3 after, smallest group 2.") : info("This does not match the checkpoint.")];
+    }},
+  ],
+  explains:["The US never received a name. Is what it received personal data? Use what the join showed.",
+            "What did generalizing cost the study, and how would you decide whether that cost is acceptable?",
+            "Why is generalizing at the source stronger than a contract clause saying 'the recipient shall not attempt re-identification'?"],
+},
+{
+  id:"p5a", group:"Lab", nav:"5A · Secret travels", eyebrow:"Part 5A · Break it", title:"The secret travels",
+  intro:"The US team wants to tokenize its own patients 'the same way', so a developer copies the tokenization secret into the shared configuration file, which is replicated to every region. The batch from Part 4 (before generalizing) is already in the US and decrypted.",
+  setup:() => { const s = newSystem({tok:true, enc:true, send:true, release:true, read:true}); s.extra.config = {}; s.panel = panelConfig; return s; },
+  predict:"The US now holds the HMAC secret but not eu_token_map. Can it work out which patient each token belongs to? If the EU rotates the secret, which batches does that protect?",
+  actions:[
+    {label:"Copy the tokenization secret into the shared config", code:'config["TOKEN_SECRET"] = secret', run:s => {
+      s.secretInUS = true; s.extra.config.TOKEN_SECRET = s.secret;
+      return [info("config.yaml replicated to: eu-west-1, eu-central-1, <b>us-east-1</b>")];
+    }},
+    {label:"US-side guessing attack with the copied secret", code:"for guess in P001..P999: hmac(config_secret, guess) == token?", run:s => {
+      const sec = s.extra.config.TOKEN_SECRET;
+      const n = EIDS.filter(pid => guessIds(s.tokens[pid], g => hmacHex(sec, g))).length;
+      return [pre(guessReport(s, g => hmacHex(sec, g)).join("\n")), info(`Tokens reversed in the US: <b>${n} of 3</b>`)];
+    }},
+    {label:"Repair: rotate the secret in the EU, re-tokenize, remove it from the config, resend", code:"rotate_secret(); tokenize(...); del config['TOKEN_SECRET']", run:s => {
+      s.extra.oldSecret = s.secret; s.extra.oldTokens = Object.assign({}, s.tokens);
+      s.secret = b64url(randBytes(32)); tokenize(s, "hmac"); delete s.extra.config.TOKEN_SECRET; s.secretInUS = false;
+      encryptBatch(s); send(s); releaseKey(s, "us-analytics", "chronic-disease outcomes study");
+      return [info(`New secret fingerprint: <span class="mono">${fp(s.secret)}</span>. eu_token_map rebuilt with 3 entries.`),
+              info("New batch sent and released. config.yaml no longer holds a secret.")];
+    }},
+    {label:"Run the attack again with the old copied secret, on both batches", code:"hmac(old_secret, guess) == token?", run:s => {
+      const old = s.extra.oldSecret;
+      const nNew = EIDS.filter(pid => guessIds(s.tokens[pid], g => hmacHex(old, g))).length;
+      const nOld = EIDS.filter(pid => guessIds(s.extra.oldTokens[pid], g => hmacHex(old, g))).length;
+      return [info(`New batch: tokens reversed <b>${nNew} of 3</b>`),
+              info(`Old batch, still stored in the US: tokens reversed <b>${nOld} of 3</b>`)];
+    }},
+  ],
+  explains:["Why is the HMAC secret as sensitive as eu_token_map itself?",
+            "Rotation protected the new batch but not the old one. What must happen to the batch already in the US?"],
+},
+{
+  id:"p5b", group:"Lab", nav:"5B · Replicated key", eyebrow:"Part 5B · Break it", title:"The replicated key",
+  intro:"Operations wants disaster recovery for the key store, so they switch on multi-region replication for the transfer key. Cloud KMSs offer exactly this. No key release has been requested.",
+  setup:() => { const s = newSystem({tok:true, enc:true, send:true}); s.panel = panelReleases; return s; },
+  predict:"Nobody requested a key release, so the release log is empty. After replication is switched on, can the US backend decrypt the batch? What will the release log show?",
+  actions:[
+    {label:"Enable multi-region replication of the transfer key", code:'kms.replicate("transfer", regions=["us-east-1"])', run:s => {
+      s.usKms["transfer"] = s.batchKey; s.usTags.transfer = "replica";
+      return [info(`us_kms now holds: ${Object.keys(s.usKms).map(k => `${k} (replica)`).join(", ")}`)];
+    }},
+    {label:"The US backend decrypts the batch", code:'Fernet(us_kms["transfer"]).decrypt(record)', run:s => {
+      return [info(`Records readable in the US: <b>${countC(s,"us")} of 3</b>`),
+              info(`Entries in key_release_log.jsonl: <b>${s.releases.length}</b>`)];
+    }},
+    {label:"Repair: delete the US replica and replicate within the EU instead", code:'kms.delete_replica("us-east-1"); kms.replicate("transfer", regions=["eu-central-1"])', run:s => {
+      delete s.usKms.transfer; delete s.usTags.transfer; s.euKms["transfer (eu-central-1)"] = s.batchKey;
+      return [info(`eu_kms: ${Object.keys(s.euKms).join(", ")} · us_kms: ${Object.keys(s.usKms).length} keys`)];
+    }},
+    {label:"The US backend tries again", code:'Fernet(us_kms["transfer"]).decrypt(record)', run:s => {
+      return [info(`us_kms holds ${Object.keys(s.usKms).length} keys → <b>KeyError: 'transfer'</b>`),
+              info(`Records readable in the US: <b>${countC(s,"us")} of 3</b> · in the EU: <b>${countC(s,"eu")} of 3</b>`)];
+    }},
+  ],
+  explains:["The US read all three records and the release log stayed empty. Why is that worse than a logged release?",
+            "Disaster recovery still needs a second copy of the key. Where may it live? Write the rule you would put in the key policy."],
+},
+{
+  id:"p5c", group:"Lab", nav:"5C · Plaintext error log", eyebrow:"Part 5C · Break it", title:"The plaintext error log",
+  intro:"The transfer job tokenizes, encrypts and sends each record. When a record fails a schema check, the error handler logs it so an engineer can fix it. Application logs are shipped to a central log cluster in the US.",
+  setup:() => { const s = newSystem({tok:true}); makeKms(s); s.panel = panelErrors; return s; },
+  predict:"P002's record fails a schema check and the handler writes it to the error log. The encrypted batch is untouched. What can someone with access to the US log cluster read?",
+  actions:[
+    {label:"Run the transfer job", code:"transfer_job(batch)", run:s => {
+      encryptBatch(s); send(s);
+      const p = P("P002"); s.errorLog.push({level:"ERROR", msg:"schema check failed", record:{patient_id:p.patient_id, name:p.name, email:p.email, zip:p.zip, dob:p.dob, sex:p.sex, diagnosis:p.diagnosis}});
+      return [info("P001 and P003: encrypted and sent."), warn("P002: schema check failed. Handler ran <span class=\"mono\">logger.error(f\"bad record: {record}\")</span>"),
+              info("Log line shipped to: log-cluster.us-east-1")];
+    }},
+    {label:"Someone with access to the US log cluster reads the error log", code:"read_logs('log-cluster.us-east-1')", run:s => {
+      return [pre(jsonl(s.errorLog)),
+              info(`From the encrypted payload, attacker reads: <b>${countC(s,"attacker")} of 3</b>. From the log: <b>${s.errorLog.filter(l => l.record && l.record.name).length}</b> full record.`)];
+    }},
+    {label:"Repair: log only the token and an error code, purge the old line, resend P002", code:'logger.error(token, "E_SCHEMA"); purge_logs(...)', run:s => {
+      s.errorLog = [{level:"ERROR", code:"E_SCHEMA", token: short(s.tokens.P002, 16)}];
+      return [info("Old line purged from the cluster. P002 fixed, encrypted and sent.")];
+    }},
+    {label:"Read the error log again", code:"read_logs('log-cluster.us-east-1')", run:s => {
+      return [pre(jsonl(s.errorLog)), info("No name, email, birth date or diagnosis in the log.")];
+    }},
+  ],
+  explains:["The 'Who can recover what' panel said 0 for the attacker the whole time. Why was it wrong?",
+            "Name two more ways personal data can leave the EU around the encrypted payload, and how you would repair each."],
+},
+{
+  id:"p6", group:"Lab", nav:"6 · Risk scoring", eyebrow:"Part 6 · 20 min", title:"Transfer-risk scoring",
+  intro:"A fixed formula turns 'is this transfer safe?' into a number: <b>Risk = (Destination exposure × Data sensitivity) ÷ Safeguard strength</b>, each scored 1 to 5. Policy: a score above 5 means do not proceed without remediation. Score the same transfer as each safeguard goes in.",
+  setup:() => { const s = newSystem(); s.panel = panelRisk; return s; },
+  predict:"You score the transfer at four stages: legal agreement only, then + pseudonymization, then + geofenced encryption, then dropping sex from the payload. At which stage does it first clear the threshold of 5?",
+  actions:[
+    {label:"Stage 1: legal agreement only", code:"score_transfer(exposure=5, sensitivity=5, safeguard_strength=1)", run:s => {
+      send(s); return [riskRow(s, "1 · Legal agreement only", 5, 5, 1)];
+    }},
+    {label:"Stage 2: add pseudonymization", code:"score_transfer(5, 5, 2)", run:s => {
+      tokenize(s, "hmac"); return [riskRow(s, "2 · + Pseudonymization", 5, 5, 2)];
+    }},
+    {label:"Stage 3: add geofenced encryption", code:"score_transfer(5, 5, 4)", run:s => {
+      makeKms(s); encryptBatch(s); return [riskRow(s, "3 · + Geofencing", 5, 5, 4)];
+    }},
+    {label:"Stage 4: drop sex from the payload", code:"score_transfer(5, 3, 4)", run:s => {
+      s.dropSex = true; encryptBatch(s); return [riskRow(s, "4 · Drop sex field", 5, 3, 4)];
+    }},
+    {label:"Print the four-row table", code:"print_table(stages)", run:s => {
+      const head = "Stage                      Exp  Sens  Safe   Score  Result";
+      const rows = s.risk.map(r => `${r.name.padEnd(26)} ${String(r.e).padStart(3)} ${String(r.se).padStart(5)} ${String(r.sg).padStart(5)} ${r.score.toFixed(2).padStart(7)}  ${r.score > 5 ? "BLOCKED" : "PASS"}`);
+      const good = s.risk.map(r => r.score).join() === "25,12.5,6.25,3.75";
+      return [pre([head, ...rows].join("\n")), good ? ok("Checkpoint reached: 25 → 12.5 → 6.25 → 3.75. Only stage 4 clears the threshold.") : info("This does not match the checkpoint.")];
+    }},
+  ],
+  explains:["What does the table show about legal authorization compared with technical safeguards?",
+            "Every factor is a judgment from 1 to 5. Who should set safeguard_strength = 4, and what evidence from this lab would you show a regulator to defend it?",
+            "Part 4 showed pseudonymization alone failing against a simple join. Is safeguard_strength = 2 for stage 2 too high, too low, or fair? Argue it."],
+},
+{
+  id:"x1", group:"Extensions", nav:"X1 · Purpose tokens", eyebrow:"Extension X1", title:"One token, two datasets",
+  intro:"A US billing vendor also receives the three EU patients. It needs names to send invoices, and it gets the same HMAC token so payments can be matched to records. Now two US datasets share one token.",
+  setup:() => { const s = newSystem({tok:true, enc:true, send:true, release:true, read:true}); s.extra.billing = null; s.panel = panelBilling; return s; },
+  predict:"Analytics holds tokens and diagnoses; billing holds tokens and names. If one person can query both, how many patients can they re-identify? What changes if each purpose gets its own token?",
+  actions:[
+    {label:"Send the billing dataset: token + name + amount", code:"send_billing(token, name, amount)", run:s => {
+      s.extra.billing = EIDS.map(pid => ({token: tokenFor(s, pid, "billing"), name: P(pid).name, amount: BILLING[pid]}));
+      return [pre(jsonl(s.extra.billing.map(shortRec)))];
+    }},
+    {label:"Join analytics and billing on the token", code:"analytics.merge(billing, on='token')", run:s => {
+      const j = joinBilling(s);
+      return [pre(j.map(x => `${x.name.padEnd(16)} ${x.diagnosis}`).join("\n") || "(no rows)"), info(`Patients re-identified with their diagnosis: <b>${j.length} of 3</b>`)];
+    }},
+    {label:"Switch to purpose-scoped tokens and resend both datasets", code:'hmac(secret, purpose + ":" + patient_id)', run:s => {
+      s.purposeScoped = true; tokenize(s, "hmac"); encryptBatch(s); send(s); releaseKey(s, "us-analytics", "chronic-disease outcomes study");
+      s.extra.billing = EIDS.map(pid => ({token: tokenFor(s, pid, "billing"), name: P(pid).name, amount: BILLING[pid]}));
+      return [info(`P001 analytics token: <span class="mono">${short(s.tokens.P001,16)}</span><br>P001 billing token: <span class="mono">${short(s.extra.billing[0].token,16)}</span>`)];
+    }},
+    {label:"Join again", code:"analytics.merge(billing, on='token')", run:s => {
+      return [info(`Patients re-identified with their diagnosis: <b>${joinBilling(s).length} of 3</b>`)];
+    }},
+    {label:"Send next week's analytics batch and link it to this week's", code:"this_week.merge(next_week, on='token')", run:s => {
+      const next = EIDS.map(pid => tokenFor(s, pid, "analytics"));
+      const n = next.filter(t => Object.values(s.tokens).includes(t)).length;
+      return [info(`Analytics records linked across the two weeks: <b>${n} of 3</b>`)];
+    }},
+  ],
+  explains:["Why did one shared token turn two harmless datasets into one harmful one?",
+            "Purpose-scoped tokens kept one kind of linking and blocked another. Which is which, and which GDPR principle does that serve?"],
+},
+{
+  id:"x2", group:"Extensions", nav:"X2 · Erasure abroad", eyebrow:"Extension X2", title:"Erasure after transfer",
+  intro:"P003 asks to be erased, as in Lab 3A. Her encrypted record is already in the US. You have three levers in the EU: her token-map entry, the batch transfer key, and (in a better design) one transfer key per patient.",
+  setup:() => newSystem({tok:true, enc:true, send:true}),
+  predict:"P003's encrypted record already sits in the US. Which EU-side action makes her copy unreadable there without harming P001 and P002?",
+  actions:[
+    {label:"Delete P003 from eu_token_map", code:'del eu_token_map[token_of("P003")]', run:s => {
+      delete s.tokenMap[s.tokens.P003];
+      const r = guessIds(s.tokens.P003, g => hmacHex(s.secret, g));
+      return [info(`eu_token_map now has ${Object.keys(s.tokenMap).length} entries. The US copy of P003 is untouched.`),
+              info(`But the EU still holds the secret: HMAC of P001..P999 finds her token again: <b>${r ? `${r.id} after ${r.n} guesses` : "no match"}</b>`)];
+    }},
+    {label:"Destroy the batch transfer key", code:'del eu_kms["transfer"]', run:s => {
+      destroyKey(s, s.batchKey);
+      return [info(`Records readable by anyone, anywhere: <b>${EIDS.filter(pid => content(s,"eu",pid) || content(s,"us",pid)).length} of 3</b>`),
+              warn(`Lost with her: ${EIDS.filter(pid => pid !== "P003").join(", ")}`)];
+    }},
+    {label:"Rebuild with one transfer key per patient, resend, then destroy only P003's key", code:'eu_kms[pid] = Fernet.generate_key(); del eu_kms["P003"]', run:s => {
+      s.gone = []; s.euKms = {}; s.perPatient = true; tokenize(s, "hmac");
+      EIDS.forEach(pid => { s.ppKeys[pid] = newKey(); s.euKms[pid] = s.ppKeys[pid]; });
+      encryptBatch(s); send(s); destroyKey(s, s.ppKeys.P003);
+      return [pre(EIDS.map(pid => `${pid}  readable in the EU: ${content(s,"eu",pid) ? "yes" : "no"}`).join("\n"))];
+    }},
+  ],
+  explains:["Why is deleting her token-map entry not an erasure?",
+            "If the US had already decrypted the batch after a key release, would destroying her key still erase her copy? What else would VitaLink have to do?",
+            "This is Lab 3A's shared-key problem again. Where else in a transfer design does key granularity matter?"],
+},
+{
+  id:"x3", group:"Extensions", nav:"X3 · Compelled access", eyebrow:"Extension X3", title:"A compelled access order",
+  intro:"A US authority serves VitaLink US with an order to hand over everything it holds on the EU patients. VitaLink US must comply with US law. This is the risk behind the Schrems II judgment and the EDPB's guidance on supplementary measures.",
+  setup:() => { const s = newSystem({tok:true, enc:true, send:true}); s.panel = panelHoldings; return s; },
+  predict:"Under the geofenced design, what can VitaLink US hand over? And a week after a key release, when the US has already decrypted the batch into its study database?",
+  actions:[
+    {label:"The order arrives: list VitaLink US holdings", code:"us_holdings()", run:s => {
+      return [info(`Ciphertexts: 3 · keys in us_kms: ${Object.keys(s.usKms).length}`), info(`Readable records handed over: <b>${countC(s,"us")} of 3</b>`)];
+    }},
+    {label:"Same order, one week after a key release", code:"us_holdings()  # after release_key + decrypt", run:s => {
+      releaseKey(s, "us-analytics", "chronic-disease outcomes study"); s.usRead = true;
+      return [info(`Readable records handed over: <b>${countC(s,"us")} of 3</b>`), pre(jsonl(usRecords(s).map(shortRec)))];
+    }},
+    {label:"The authority joins them with the running-club list", code:'link(records, running_club, on=["zip","dob","sex"])', run:s => {
+      s.linkKnown = true; const n = usRecords(s).filter(r => linkRunners(r, false).length === 1).length;
+      return [info(`Uniquely re-identified: <b>${n} of 3</b>`)];
+    }},
+    {label:"Same order, if the generalized payload from Part 4 had been sent", code:"prepare_payload(generalize=True)", run:s => {
+      s.generalize = true; encryptBatch(s);
+      const n = usRecords(s).filter(r => linkRunners(r, true).length === 1).length;
+      return [info(`Uniquely re-identified: <b>${n} of 3</b>`)];
+    }},
+  ],
+  explains:["Why does where the key lives matter more than where the data lives?",
+            "EDPB guidance accepts encryption as a supplementary measure only if the key stays out of reach of the destination country's authorities. What does a key release do to that argument?"],
+},
+];
+
+function riskRow(s, name, e, se, sg){
+  const score = (e * se) / sg; s.risk.push({name, e, se, sg, score});
+  return info(`${name}: Risk = ${e} × ${se} ÷ ${sg} = <b>${score.toFixed(2)}</b> → <b>${score > 5 ? "BLOCKED" : "PASS"}</b> (threshold 5)`);
+}
+function joinBilling(s){
+  if(!s.extra.billing) return [];
+  return s.extra.billing.map(b => { const pid = EIDS.find(id => s.tokens[id] === b.token); return pid ? {name:b.name, diagnosis:P(pid).diagnosis} : null; }).filter(Boolean);
+}
+
+/* Step-specific side panels */
+function panelLink(s){
+  return `<h3>running_club_members.csv · public</h3><div class="grid-wrap"><table class="grid">
+    <tr><th>name</th><th>zip</th><th>dob</th><th>sex</th></tr>
+    ${RUNNERS.map(r => `<tr><td>${esc(r.name)}</td><td>${r.zip}</td><td>${r.dob}</td><td>${r.sex}</td></tr>`).join("")}</table></div>
+    <h3 style="margin-top:12px">key_release_log.jsonl</h3>${releaseList(s)}`;
+}
+function releaseList(s){
+  return `<div class="panel-list">${s.releases.length ? s.releases.map(r => `<div class="mono">${esc(JSON.stringify(r))}</div>`).join("") : '<span class="note">empty</span>'}</div>`;
+}
+function panelReleases(s){ return `<h3>key_release_log.jsonl</h3>${releaseList(s)}`; }
+function panelConfig(s){
+  const c = s.extra.config;
+  return `<h3>config.yaml · replicated to every region</h3><div class="panel-list">
+    <div class="mono">regions: [eu-west-1, eu-central-1, us-east-1]</div>
+    ${c.TOKEN_SECRET ? `<div class="mono"><span class="cell k-plain">TOKEN_SECRET: ${short(c.TOKEN_SECRET, 22)}</span></div>` : '<div class="note">no secrets in this file</div>'}</div>`;
+}
+function panelErrors(s){
+  return `<h3>log-cluster.us-east-1 · error log</h3><div class="panel-list">${s.errorLog.length ? s.errorLog.map(l =>
+    `<div class="mono"><span class="cell ${l.record ? "k-plain" : "k-token"}" style="white-space:normal">${esc(JSON.stringify(l))}</span></div>`).join("") : '<span class="note">empty</span>'}</div>`;
+}
+function panelRisk(s){
+  if(!s.risk.length) return `<h3>Transfer-risk score</h3><span class="note">No stages scored yet. Threshold: 5.</span>`;
+  return `<h3>Transfer-risk score · threshold 5</h3><div class="bars">${s.risk.map(r => `
+    <div>${esc(r.name)} <span class="note">(${r.e} × ${r.se} ÷ ${r.sg})</span>
+      <div class="bar"><div class="fill ${r.score > 5 ? "fail" : "pass"}" style="width:${Math.min(r.score/25,1)*100}%"></div>
+      <div class="thr" style="left:20%"></div><span class="val">${r.score.toFixed(2)} · ${r.score > 5 ? "BLOCKED" : "PASS"}</span></div></div>`).join("")}</div>
+    <p class="note" style="margin-top:6px">The dark line marks the threshold of 5 on a scale of 0 to 25.</p>`;
+}
+function panelBilling(s){
+  const b = s.extra.billing;
+  return `<h3>US billing vendor · billing.csv</h3><div class="panel-list">${b ? b.map(r => `<div><span class="cell k-token">${short(r.token,12)}</span> <span class="cell k-plain">${esc(r.name)}</span> ${r.amount}</div>`).join("") : '<span class="note">nothing received yet</span>'}</div>`;
+}
+function panelHoldings(s){
+  return `<h3>VitaLink US holdings</h3><div class="panel-list">
+    <div>Encrypted batch: 3 ciphertexts</div>
+    <div>Keys in us_kms: ${Object.keys(s.usKms).length ? Object.keys(s.usKms).join(", ") : "none"}</div>
+    <div>Decrypted study table: ${s.usRead ? '<span class="cell k-plain">3 rows</span>' : "none"}</div></div>
+    <h3 style="margin-top:12px">key_release_log.jsonl</h3>${releaseList(s)}`;
+}
+
+/* =========================================================================
+   Saved answers (kept in this browser on this computer)
+   ========================================================================= */
+const STORE_KEY = "lab3b-geofenced-transfer-answers-v1";
+let store = {name:"", answers:{}};
+try { const raw = localStorage.getItem(STORE_KEY); if(raw) store = Object.assign(store, JSON.parse(raw)); } catch(e) {}
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch(e) {} }
+function ans(id){ return store.answers[id] || (store.answers[id] = {predict:"", locked:false, explains:[], ran:false}); }
+const MIN = 15;
+const filled = t => (t || "").trim().length >= MIN;
+function stepStatus(st){
+  const a = store.answers[st.id]; if(!a) return "";
+  if(a.ran && filled(a.predict) && st.explains.every((_,i) => filled(a.explains[i]))) return "done";
+  return (a.predict || a.ran) ? "started" : "";
+}
+
+/* =========================================================================
+   Rendering
+   ========================================================================= */
+let current = "start", sys = null, ran = 0, output = [];
+const $ = id => document.getElementById(id);
+
+function renderNav(){
+  let html = `<button data-go="start" class="${current==="start"?"active":""}"><span class="dot ${store.name?"done":""}"></span>Start here</button>`;
+  let group = "";
+  STEPS.forEach(st => {
+    if(st.group !== group){ group = st.group; html += `<div class="group">${group === "Lab" ? "The lab" : "Extra exercises"}</div>`; }
+    html += `<button data-go="${st.id}" class="${current===st.id?"active":""}"><span class="dot ${stepStatus(st)}"></span>${st.nav}</button>`;
+  });
+  html += `<div class="group">Finish</div><button data-go="finish" class="${current==="finish"?"active":""}"><span class="dot"></span>Hand in answers</button>`;
+  $("nav").innerHTML = html;
+  $("nav").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.go));
+  $("who").textContent = store.name ? `Student: ${store.name}` : "";
+}
+
+function go(id){
+  current = id; ran = 0; output = [];
+  const st = STEPS.find(s => s.id === id);
+  sys = st ? st.setup() : null;
+  render(); window.scrollTo(0,0);
+}
+
+function render(){
+  renderNav();
+  if(current === "start") return renderStart();
+  if(current === "finish") return renderFinish();
+  renderStep(); renderSystem();
+}
+
+function renderStart(){
+  $("system").innerHTML = "";
+  $("main").innerHTML = `<div class="card welcome">
+    <div class="eyebrow">Lab 3B · Geofencing + Pseudonymized Transfer</div>
+    <h1>Send patient data abroad so that stealing it is useless</h1>
+    <p>VitaLink's US analytics team wants the records of the three <b>EU patients, P001 to P003</b>. A signed contract makes the transfer legal. Your job is to make it safe: hide <i>who</i> with tokens, hide <i>what</i> with a key that never leaves the EU, prove it, find what it missed, break it, and finally put a number on the risk.</p>
+    <p><b>How every part works</b></p>
+    <ol>
+      <li><b>Predict</b>: before anything runs, write what you think will happen. It is marked on reasoning, not on being right.</li>
+      <li><b>Run</b>: click the actions one by one. The panel on the right shows the two regions, the payload on the wire, and who can read it.</li>
+      <li><b>Explain</b>: write what you saw and why, especially where it differed from your prediction.</li>
+    </ol>
+    <p>Your prediction locks once you run the first action. Answers are kept in this browser on this computer, but <b>copy them into Notepad at the end of each part</b> to be safe.</p>
+    <p class="note">This is a simulation that runs entirely in your browser, with no internet needed. Keys, tokens, hashes and HMACs behave like the Python code in the lab manual (Fernet, hashlib, hmac).</p>
+    <p class="q">Your full name</p>
+    <input class="name" id="name" placeholder="First and last name" value="${esc(store.name)}">
+    <div class="btnrow"><button class="btn" id="begin">Start Part 1</button></div>
+  </div>`;
+  $("name").oninput = e => { store.name = e.target.value; save(); renderNav(); };
+  $("begin").onclick = () => go("p1");
+}
+
+function renderStep(){
+  const st = STEPS.find(s => s.id === current), a = ans(st.id);
+  const idx = STEPS.indexOf(st), next = STEPS[idx+1] ? STEPS[idx+1].id : "finish";
+  $("main").innerHTML = `
+    <div class="card">
+      <div class="eyebrow">${st.eyebrow}</div>
+      <h1>${st.title}</h1>
+      <p>${st.intro}</p>
+    </div>
+    <div class="card">
+      <h2><span class="pill predict">Predict</span> Write it down first</h2>
+      <p class="q">${st.predict}</p>
+      <textarea id="predict" placeholder="Your prediction, in one to three sentences…">${esc(a.predict)}</textarea>
+      <div id="predictNote"></div>
+    </div>
+    <div class="card">
+      <h2><span class="pill run">Run</span> Click the actions in order</h2>
+      <div class="actions" id="actions"></div>
+      <div style="height:12px"></div>
+      <div class="console" id="console"></div>
+    </div>
+    <div class="card">
+      <h2><span class="pill explain">Explain</span> Say what you saw</h2>
+      ${st.explains.map((q,i) => `<p class="q">${i+1}. ${q}</p><textarea data-ex="${i}" placeholder="Two to five sentences…">${esc(a.explains[i]||"")}</textarea>`).join("")}
+      <div id="explainNote" class="hint"></div>
+    </div>
+    <div class="footer-row">
+      <span class="note">Answers save automatically as you type.</span>
+      <button class="btn navy" id="next">Save and continue →</button>
+    </div>`;
+  $("predict").oninput = e => { a.predict = e.target.value; save(); renderActions(); renderNav(); };
+  document.querySelectorAll("textarea[data-ex]").forEach(t => t.oninput = e => { a.explains[+t.dataset.ex] = e.target.value; save(); renderNav(); });
+  $("next").onclick = () => go(next);
+  renderActions(); renderConsole();
+}
+
+function renderActions(){
+  const st = STEPS.find(s => s.id === current), a = ans(st.id);
+  const canStart = a.locked || filled(a.predict);
+  $("predict").disabled = a.locked;
+  $("predictNote").innerHTML = a.locked ? `<div class="locked">🔒 Prediction locked. It stays as you wrote it, even if it was wrong.</div>`
+                                        : `<div class="hint">Write at least one full sentence to unlock the actions. Wrong predictions are fine.</div>`;
+  $("actions").innerHTML = st.actions.map((act,i) => `
+    <div class="act ${i < ran ? "done" : ""}">
+      <span class="n">${i < ran ? "✓" : i+1}</span>
+      <div class="lbl">${act.label}<code>${esc(act.code)}</code></div>
+      <button class="btn" data-act="${i}" ${(i !== ran || !canStart) ? "disabled" : ""}>${i < ran ? "Done" : "Run"}</button>
+    </div>`).join("");
+  $("actions").querySelectorAll("button[data-act]").forEach(b => b.onclick = () => runAction(+b.dataset.act));
+  const allRan = ran >= st.actions.length || a.ran;
+  document.querySelectorAll("textarea[data-ex]").forEach(t => t.disabled = !allRan);
+  $("explainNote").textContent = allRan ? "" : "These unlock after you have run every action.";
+}
+
+function runAction(i){
+  const st = STEPS.find(s => s.id === current), a = ans(st.id);
+  if(i === 0){ a.locked = true; }
+  output.push(`<div class="step">› ${esc(st.actions[i].code)}</div>`, ...st.actions[i].run(sys));
+  ran = i + 1;
+  if(ran >= st.actions.length) a.ran = true;
+  save(); renderActions(); renderConsole(); renderSystem(); renderNav();
+}
+
+function renderConsole(){
+  $("console").innerHTML = output.length ? output.join("") : `<span class="empty">Output appears here when you run an action.</span>`;
+}
+
+function kmsChips(s, kms, side){
+  const live = Object.entries(kms).map(([n,k]) => {
+    const tag = side === "US" ? s.usTags[n] : "";
+    const cls = tag === "replica" ? "leak" : tag === "released" ? "rel" : "";
+    return `<span class="key ${cls}"><b>${esc(n)}</b> <span class="fp">${fp(k).slice(0,10)}</span>${tag ? ` · ${tag}` : ""}</span>`;
+  });
+  const dead = s.gone.filter(g => g.side === side).map(g => `<span class="key gone"><b>${esc(g.name)}</b> destroyed</span>`);
+  return live.concat(dead).join("") || `<span class="note">empty</span>`;
+}
+
+function cellFor(s, pid, col){
+  const r = payloadRecord(s, pid), p = P(pid);
+  if(col === "subject"){
+    if(s.tokenMode) return `<span class="cell k-token" title="${r.token}">${short(r.token,10)}</span>`;
+    return `<span class="cell k-plain">${esc(p.name)}</span>`;
+  }
+  if(!(col in r)) return `<span class="cell k-drop">dropped</span>`;
+  const gen = s.generalize && (col === "zip" || col === "dob");
+  return `<span class="cell ${gen ? "k-gen" : "k-plain"}">${esc(r[col])}</span>`;
+}
+
+function renderSystem(){
+  const s = sys;
+  const secretEU = s.tokenMode === "hmac" ? `<span class="key"><b>token secret</b> <span class="fp">${fp(s.secret).slice(0,10)}</span></span>`
+                 : s.tokenMode === "sha" ? `<span class="note">no secret (plain SHA-256)</span>` : `<span class="note">not tokenized yet</span>`;
+  const secretUS = s.secretInUS ? `<span class="key leak"><b>token secret</b> <span class="fp">${fp(s.secret).slice(0,10)}</span> · copied</span>` : `<span class="note">none</span>`;
+  const mapEntries = Object.entries(s.tokenMap);
+  const map = mapEntries.length ? mapEntries.map(([t,pid]) => `<span class="key"><span class="fp">${short(t,8)}</span> → <b>${pid}</b></span>`).join("") : `<span class="note">empty</span>`;
+  const usData = !s.sent ? "nothing received" : !s.encrypted ? "3 records, plaintext" : s.usRead ? "3 ciphertexts + decrypted study table" : "3 ciphertexts";
+  const enc = !s.encrypted ? `<span class="cell k-plain">not encrypted</span>`
+            : `<span class="cell k-cipher">🔒 whole record encrypted with ${s.perPatient ? "one key per patient" : `transfer key ${fp(s.batchKey).slice(0,10)}`}</span>`;
+  const head = `<tr><th>EU patient</th>${COLS.map(c => `<th>${c === "subject" ? "identity" : c}</th>`).join("")}</tr>`;
+  const rows = EIDS.map(pid => `<tr><td>${pid}</td>${COLS.map(c => `<td>${cellFor(s, pid, c)}</td>`).join("")}</tr>`).join("");
+  const party = [["attacker","Attacker on the wire"],["us","US analytics backend"],["eu","EU origin"]];
+  const mcell = (n, bad) => `<span class="cell ${n === 0 ? "k-drop" : bad ? "k-plain" : "k-ok"}" style="min-width:60px">${n} of 3</span>`;
+  const matrix = !s.sent ? `<span class="note">Nothing has been sent yet.</span>` : `<table class="matrix">
+      <tr><th>Who</th><th>What it says<br>(records readable)</th><th>Who it is about<br>(identities recovered)</th></tr>
+      ${party.map(([id,label]) => {
+        const c = countC(s, id), i = countI(s, id);
+        const how = [...new Set(EIDS.map(pid => identity(s, id, pid)).filter(Boolean))].join(", ");
+        const cBad = id === "attacker" || (id === "us" && s.usTags.transfer === "replica");
+        return `<tr><td>${label}</td><td>${mcell(c, cBad)}</td><td>${mcell(i, id !== "eu")}${how ? `<span class="how">via ${esc(how)}</span>` : ""}</td></tr>`;
+      }).join("")}</table>`;
+  $("system").innerHTML = `
+    <div class="card"><h3>Two regions</h3><div class="regions">
+      <div class="region"><h4>🇪🇺 EU origin</h4>
+        <div class="sub">eu_kms</div><div class="keys">${kmsChips(s, s.euKms, "EU")}</div>
+        <div class="sub">tokenization</div><div class="keys">${secretEU}</div>
+        <div class="sub">eu_token_map</div><div class="keys">${map}</div></div>
+      <div class="region"><h4>🇺🇸 US analytics backend</h4>
+        <div class="sub">us_kms</div><div class="keys">${kmsChips(s, s.usKms, "US")}</div>
+        <div class="sub">secrets in config</div><div class="keys">${secretUS}</div>
+        <div class="sub">data held</div><div class="note">${usData}</div></div>
+    </div></div>
+    <div class="card"><h3>Transfer payload · ${s.sent ? `sent (${s.batches} batch${s.batches === 1 ? "" : "es"})` : "prepared, not sent"}</h3>
+      <p class="wire">${enc}</p>
+      <div class="grid-wrap"><table class="grid payload">${head}${rows}</table></div>
+      <div class="legend"><span class="cell k-plain">plaintext</span><span class="cell k-token">token</span><span class="cell k-gen">generalized</span><span class="cell k-drop">dropped</span></div>
+      <p class="note" style="margin-top:6px">The table shows each record before encryption. A token replaces patient_id, name and email.</p></div>
+    <div class="card"><h3>Who can recover what · from the payload</h3>${matrix}</div>
+    ${s.panel ? `<div class="card">${s.panel(s)}</div>` : ""}`;
+}
+
+function answersText(){
+  const lines = ["Lab 3B - Geofencing + Pseudonymized Transfer: answers", `Name: ${store.name || "(not given)"}`, `Saved: ${new Date().toLocaleString()}`, ""];
+  STEPS.forEach(st => {
+    const a = store.answers[st.id] || {explains:[]};
+    lines.push("=".repeat(60), `${st.eyebrow}: ${st.title}`, "=".repeat(60));
+    lines.push(`PREDICT: ${st.predict}`, `> ${(a.predict || "").trim() || "(no answer)"}`, "");
+    st.explains.forEach((q,i) => lines.push(`EXPLAIN ${i+1}: ${q}`, `> ${((a.explains||[])[i] || "").trim() || "(no answer)"}`, ""));
+    lines.push(`Actions completed: ${a.ran ? "yes" : "no"}`, "");
+  });
+  return lines.join("\r\n");
+}
+
+function renderFinish(){
+  $("system").innerHTML = "";
+  const rows = STEPS.map(st => {
+    const s = stepStatus(st);
+    return `<div class="row"><span>${st.eyebrow}: ${st.title}</span><span class="${s==="done"?"yes":"no"}">${s==="done"?"complete":(s?"in progress":"not started")}</span></div>`;
+  }).join("");
+  $("main").innerHTML = `<div class="card">
+    <div class="eyebrow">Finish</div><h1>Hand in your answers</h1>
+    <p>Check your name, then copy your answers into Notepad and save the file as <b>Lab3B_YourName.txt</b>. Or download the text file directly.</p>
+    <p class="q">Your full name</p><input class="name" id="name2" value="${esc(store.name)}" placeholder="First and last name">
+    <div class="btnrow"><button class="btn" id="copy">Copy all my answers</button><button class="btn ghost" id="dl">Download as .txt</button></div>
+    <div class="status-list">${rows}</div>
+    <p class="q" style="margin-top:14px">Everything you wrote (you can also select it and press Ctrl+C):</p>
+    <textarea id="all" style="min-height:280px;font-family:var(--mono);font-size:13px" readonly></textarea>
+  </div>`;
+  $("all").value = answersText();
+  $("name2").oninput = e => { store.name = e.target.value; save(); renderNav(); $("all").value = answersText(); };
+  $("copy").onclick = copyAll;
+  $("dl").onclick = () => {
+    const blob = new Blob([answersText()], {type:"text/plain"}), a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `Lab3B_${(store.name || "answers").replace(/[^A-Za-z0-9]+/g,"_")}.txt`;
+    document.body.appendChild(a); a.click(); a.remove(); toast("Downloaded. Check your Downloads folder.");
+  };
+}
+
+function copyAll(){
+  const t = $("all"); t.value = answersText();
+  const fallback = () => { t.focus(); t.select(); let done = false; try { done = document.execCommand("copy"); } catch(e) {}
+    toast(done ? "Copied. Paste it into Notepad with Ctrl+V." : "Select the text below and press Ctrl+C."); };
+  if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t.value).then(() => toast("Copied. Paste it into Notepad with Ctrl+V."), fallback);
+  else fallback();
+}
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 2600); }
+
+render();
+</script>
+</body>
+</html>
